@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/ts" />
+    <qresource prefix="/sprites" >
+        <file>res/bivres.png</file>
+        <file>res/res.png</file>
+        <file alias="res" >res/shadow.png</file>
+    </qresource>
+</RCC>
