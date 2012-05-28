@@ -6,41 +6,46 @@
 #include <QtGui/QKeyEvent>
 #include <QtDebug>
 
-#include "groundengine.h"
 #include "mainwindow.h"
 
-const QSize spriteSize(32,32);
+const int TIMER_DELAY = 10;
+const QSize SPRITE_SIZE(32,32);
+
+QPoint getRandomPos(const QRect & rect, const QSize & spriteSize)
+{
+	return QPoint(
+			rand() % (rect.right() - rect.left() - spriteSize.width() ) + rect.left(),
+			rand() % (rect.top() - rect.bottom() - spriteSize.height()) + rect.top()
+			);
+}
+
+Mate::Mate()
+	: actionDelay(0), currentFrame(0), state(MateState::FALLING)
+{
+	QPixmap image;
+	image.load(":/sprites/sprite");
+
+	int spriteCount = image.width() / SPRITE_SIZE.width();
+	pixmap.resize(spriteCount);
+	for(int i = 0; i < spriteCount; ++i) {
+		pixmap[i] = image.copy(
+				i * SPRITE_SIZE.width(), 0,
+				SPRITE_SIZE.width(), image.height()
+				);
+	}
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QWidget(parent)
 {
-	QPixmap p("../usr/shadow.png");
-	p.setMask(p.createMaskFromColor(Qt::magenta));
-	p.save("../usr/shadow.png");
-
-	qsrand(time(NULL) + QApplication::applicationPid());
-
-	//window
-	screenWidth=QApplication::desktop()->availableGeometry().width();
-	screenHeight=QApplication::desktop()->availableGeometry().height();
+	screenRect = QApplication::desktop()->availableGeometry();
 	setAutoFillBackground(false);
 	setAttribute(Qt::WA_TranslucentBackground);
+	//setAttribute(Qt::WA_NoSystemBackground, true );
 
-	QRect newRect=QRect(QPoint(),spriteSize);
-	newRect.moveBottom(0);
-	newRect.moveLeft(rand() % (screenWidth-spriteSize.width()));
-	setGeometry(newRect);
+	setGeometry(QRect(getRandomPos(screenRect, SPRITE_SIZE), SPRITE_SIZE));
 
-	//object
-	lastPos=QPoint(0,0);
-	actionDelay=0;
-	currentFrame=0;
-	state=Falling;
-	action=Standing;
-	sprite.load(":/sprites/res");
-
-	//timer
-	timerId=startTimer(10);
+	timerId = startTimer(TIMER_DELAY);
 }
 
 MainWindow::~MainWindow()
@@ -48,32 +53,27 @@ MainWindow::~MainWindow()
 	killTimer(timerId);
 }
 
-void MainWindow::paintEvent(QPaintEvent*)
+const QPixmap Mate::sprite()
 {
-	//get right sprite index in sprite table
-	int spriteIndex=0;
-	switch(state)
-	{
-		case Falling: spriteIndex=3; break;
-		case Captured: spriteIndex=4; break;
-		case Acting: switch(action)
-			{
-				case Standing: spriteIndex=0; break;
-				case MovingRight: spriteIndex=2; break;
-				case MovingLeft: spriteIndex=1; break;
-				default: break;
-			}
-			break;
-		default: break;
-	}
+	QMap<int, int> spriteForState;
+	spriteForState[MateState::STANDING] = 0;
+	spriteForState[MateState::LEFT    ] = 1;
+	spriteForState[MateState::RIGHT   ] = 2;
+	spriteForState[MateState::FALLING ] = 3;
+	spriteForState[MateState::CAPTURED] = 4;
 
-	//drawing
+	QPixmap & frameStrip = pixmap[spriteForState[state]];
+	return frameStrip.copy(
+			0, int(currentFrame / 10) * SPRITE_SIZE.height(),
+			SPRITE_SIZE.width(), SPRITE_SIZE.height()
+			);
+}
+
+void MainWindow::paintEvent(QPaintEvent *)
+{
 	QPainter painter(this);
-	painter.drawPixmap(QPoint(0,0),sprite,
-			QRect(spriteIndex * spriteSize.width(),
-				  int(currentFrame/10) * spriteSize.height(),
-				  spriteSize.width(),
-				  spriteSize.height()));
+	painter.fillRect(rect(), Qt::transparent);
+	painter.drawPixmap(QPoint(0, 0), mate.sprite());
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event)
@@ -85,83 +85,116 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 	}
 }
 
+void Mate::capture()
+{
+	state = MateState::CAPTURED;
+}
+
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
-	if(event->button()==Qt::LeftButton)
+	if(event->button() == Qt::LeftButton)
 	{
-		state=Captured;
-		lastPos=event->pos();
+		mate.capture();
+		lastPos = event->pos();
 	}
+}
+
+void Mate::startFalling()
+{
+	state = MateState::FALLING;
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event)
 {
-	if(event->button()==Qt::LeftButton)
-		state=Falling;
+	if(event->button() == Qt::LeftButton) {
+		mate.startFalling();
+	}
+}
+
+bool Mate::isCaptured() const
+{
+	return state == MateState::CAPTURED;
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event)
 {
-	if(state==Captured && event->buttons().testFlag(Qt::LeftButton))
-		move(pos()+event->pos()-lastPos);
+	if(mate.isCaptured() && event->buttons().testFlag(Qt::LeftButton)) {
+		move(pos() + event->pos() - lastPos);
+	}
+}
+
+void Mate::moveToNextFrame()
+{
+	++currentFrame;
+	if(currentFrame > 19) {
+		currentFrame = 0;
+	}
+}
+
+int Mate::getRandomAction()
+{
+	return MateState::ACTIONS + 1 + qrand() % (MateState::COUNT - MateState::ACTIONS - 1);
+}
+
+void Mate::act()
+{
+	if(onGround())
+	{
+		actionDelay--;
+		if(actionDelay <= 0) // Means it stands free and can act.
+		{
+			state = getRandomAction();
+			actionDelay = 100;
+		}
+	}
+}
+
+QPoint Mate::movement()
+{
+	switch(state)
+	{
+		case MateState::FALLING: return QPoint( 0, 1);
+		case MateState::LEFT   : return QPoint(-1, 0);
+		case MateState::RIGHT  : return QPoint( 1, 0);
+		default: break;
+	}
+	return QPoint();
+}
+
+void Mate::meetGround()
+{
+	if(state == MateState::FALLING) {
+		state = getRandomAction();
+		actionDelay = 0;
+	}
+}
+
+bool Mate::onGround()
+{
+	return (state > MateState::ACTIONS);
 }
 
 void MainWindow::timerEvent(QTimerEvent*)
 {
-	//animation
-	currentFrame++;
-	if(currentFrame>19) currentFrame=0;
-	
-	//do some actions
-	if(state==Acting)
-	{
-		actionDelay--;
-		if(actionDelay<=0) //means it is stand free and can act
-		{
-			action=Action(qrand()%ActionCount);
-			actionDelay=100;
-		}
+	mate.moveToNextFrame();
+	mate.act();
+	move(pos() + mate.movement());
+
+	if(geometry().bottom() > screenRect.bottom()) {
+		QRect newGeometry = geometry();
+		newGeometry.moveBottom(screenRect.bottom());
+		setGeometry(newGeometry);
+
+		mate.meetGround();
+	} else if(!mate.isCaptured() && geometry().bottom() < screenRect.bottom()) {
+		mate.startFalling();
 	}
 
-	switch(state)
-	{
-		case Falling: move(pos()+QPoint(0,1)); break;
-		case Acting: switch(action)
-			{
-				case MovingLeft: move(pos() - QPoint(1,0)); break;
-				case MovingRight: move(pos() + QPoint(1,0)); break;
-				default: break;
-			}
-		default: break;
+	if(!(rand() % 1000)) {
+		move(getRandomPos(screenRect, SPRITE_SIZE));
+		mate.startFalling();
 	}
 
-	//checking the earth under the foots
-	QRect actualGeometry=geometry();
-	actualGeometry.setWidth(actualGeometry.width() / 2); //only two center quarters has value
-	actualGeometry.moveCenter(geometry().center());
-
-	if(GroundEngine::hasGround(actualGeometry))
-	{
-		if(state==Falling)
-		{
-			state=Acting;
-			actionDelay=0;
-		}
-	}
-	else
-	{
-		if(state==Acting)
-			state=Falling;
-	}
-
-	//rebirth if should
-	if((actualGeometry.right()<=0 || actualGeometry.left()>=screenWidth) || y()>screenHeight)
-	{
-		move(qrand()%(screenWidth-width()),-height());
-		state=Falling;
-	}
-
-	//draw
 	update();
 }
 

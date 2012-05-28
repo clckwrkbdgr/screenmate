@@ -9,22 +9,37 @@ class QKeyEvent;
 class QMouseEvent;
 class QPixmap;
 
+namespace MateState {
+	enum {FALLING, CAPTURED, ACTIONS, LEFT, RIGHT, STANDING, COUNT};
+}
+
+class Mate {
+public:
+	Mate();
+	void capture();
+	void startFalling();
+	bool isCaptured() const;
+	void moveToNextFrame();
+	int getRandomAction();
+	void act();
+	QPoint movement();
+	void meetGround();
+	bool onGround();
+	const QPixmap sprite();
+private:
+	QVector<QPixmap> pixmap;
+	int actionDelay, currentFrame;
+	int state;
+};
+
 class MainWindow : public QWidget
 {
     Q_OBJECT
 
 	int timerId;
-
-	QPixmap sprite;
-
-	enum Action {Standing=0,MovingLeft=1,MovingRight=2,
-				 ActionCount=3} action;
-	enum State {Captured=0,Falling=1,Acting=2} state;
-
-	int actionDelay, currentFrame;
+	Mate mate;
 	QPoint lastPos;
-	
-	int screenWidth,screenHeight;
+	QRect screenRect;
 protected:
 	virtual void paintEvent(QPaintEvent *event);
 	virtual void mousePressEvent(QMouseEvent *event);
