@@ -3,34 +3,13 @@
 
 #include <QtGui/QWidget>
 
+#include "mate.h"
+
 class QTimer;
 class QPaintEvent;
 class QKeyEvent;
 class QMouseEvent;
 class QPixmap;
-
-namespace MateState {
-	enum {FALLING, CAPTURED, ACTIONS, LEFT, RIGHT, STANDING, COUNT};
-}
-
-class Mate {
-public:
-	Mate();
-	void capture();
-	void startFalling();
-	bool isCaptured() const;
-	void moveToNextFrame();
-	int getRandomAction();
-	void act();
-	QPoint movement();
-	void meetGround();
-	bool onGround();
-	const QPixmap sprite();
-private:
-	QVector<QPixmap> pixmap;
-	int actionDelay, currentFrame;
-	int state;
-};
 
 class MainWindow : public QWidget
 {

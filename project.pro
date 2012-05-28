@@ -7,5 +7,5 @@ OBJECTS_DIR = tmp
 MOC_DIR = tmp
 
 RESOURCES = application.qrc
-SOURCES = main.cpp mainwindow.cpp
-HEADERS = mainwindow.h
+SOURCES = main.cpp mainwindow.cpp mate.cpp
+HEADERS = mainwindow.h mate.h
