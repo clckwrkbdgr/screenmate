@@ -1,0 +1,5 @@
+# Qt build system.
+Makefile
+tmp/
+# Application binary.
+screenmate
