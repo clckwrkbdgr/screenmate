@@ -60,10 +60,16 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
-	if(event->button() == Qt::LeftButton)
-	{
-		mate.capture();
-		lastPos = event->pos();
+	switch(event->button()) {
+		case Qt::LeftButton: {
+			mate.capture();
+			lastPos = event->pos();
+			break;
+		}
+		case Qt::RightButton: {
+			qApp->quit();
+			break;
+		}
 	}
 }
 
