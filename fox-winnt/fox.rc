@@ -1,0 +1,4 @@
+#include "fox_resource.h"
+
+IDR_FOX BITMAP "fox.bmp"
+IDR_ARCTIC_FOX BITMAP "arctic_fox.bmp"
